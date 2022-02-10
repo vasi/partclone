@@ -73,7 +73,7 @@ typedef struct HFSPlusVolumeHeader HFSPlusVolumeHeader;
 /*
  * HFS types, for handling HFS+ wrapper volumes.
  *
- * See Inside Macintosh volume 2 for HFS structures,
+ * See Inside Macintosh chapter 2 for HFS structures,
  * and Apple Technote 1150 for HFS+ wrappers
  */
 
