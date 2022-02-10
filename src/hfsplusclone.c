@@ -207,7 +207,7 @@ static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt
     int IsUsed = 0;
     UInt8 *extent_bitmap;
     UInt32 bused = 0, bfree = 0, mused = 0;
-    UInt32 block = block_offset, extent_block = 0, tb = 0;
+    UInt32 block = 0, extent_block = 0, tb = 0;
     int allocation_exten = 0;
     UInt32 block_size = 0;
     UInt64 allocation_start_block;
@@ -250,7 +250,7 @@ static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt
             }
             block++;
             /// update progress
-            update_pui(prog, block, block, 0);
+            update_pui(prog, block * bits_per_block, block * bits_per_block, 0);
 
         }
         log_mesg(2, 0, 0, 2, "%s: next exten\n", __FILE__);
