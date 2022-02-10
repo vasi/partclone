@@ -30,8 +30,8 @@
 #include "fs_common.h"
 
 struct HFSPlusVolumeHeader sb;
-struct HFSVolumeHeader hsb;
-UInt64 partition_size;
+static struct HFSVolumeHeader hsb;
+static UInt64 partition_size;
 int ret;
 
 static short reverseShort(short s){
@@ -81,7 +81,7 @@ static UInt64 hfs_embed_offset() {
     int wrapper_block_size;
 
     wrapper_block_size = reverseInt(hsb.allocationBlockSize);
-    return (UInt64)reverseShort(hsb.firstAllocationBlock) * 512 +
+    return (UInt64)reverseShort(hsb.firstAllocationBlock) * PART_SECTOR_SIZE +
         reverseShort(hsb.embedExtent.startBlock) * wrapper_block_size;
 }
 
@@ -91,6 +91,9 @@ static void open_wrapped_volume(char *device, short *signature, char *buffer) {
     int hfsp_block_size, wrapper_block_size;
     UInt64 embed_offset, hfsp_sb_offset;
     UInt64 embed_size, hfsp_size;
+
+    // Need the total partition size, HFS wrapper doesn't know it
+    partition_size = get_partition_size(&ret);
 
     memcpy(&hsb, &sb, sizeof(HFSVolumeHeader)); // HFS header is always smaller
     wrapper_signature = reverseShort(hsb.embedSignature);
@@ -131,6 +134,8 @@ static void fs_open(char* device){
     short HFS_Version;
     short HFS_Signature;
     int HFS_Clean = 0;
+
+    memset(&hsb, 0, sizeof(HFSVolumeHeader));
 
     ret = open(device, O_RDONLY);
     if(lseek(ret, 1024, SEEK_SET) != 1024)
@@ -283,10 +288,18 @@ void read_super_blocks(char* device, file_system_info* fs_info)
 
     fs_open(device);
     strncpy(fs_info->fs, hfsplus_MAGIC, FS_MAGIC_SIZE);
-    fs_info->block_size  = reverseInt(sb.blockSize);
-    fs_info->totalblock  = reverseInt(sb.totalBlocks);
-    fs_info->usedblocks  = reverseInt(sb.totalBlocks) - reverseInt(sb.freeBlocks);
-    fs_info->device_size = fs_info->block_size * fs_info->totalblock;
+    if (hsb.signature != 0) {
+        // An HFS wrapper doesn't know its own size! And it might not be a multiple of HFS+ block size
+        fs_info->block_size = PART_SECTOR_SIZE;
+        fs_info->device_size = partition_size;
+        fs_info->totalblock = fs_info->device_size / fs_info->block_size;
+        fs_info->usedblocks = fs_info->totalblock - (reverseInt(sb.freeBlocks) * reverseInt(sb.blockSize));
+    } else {
+        fs_info->block_size  = reverseInt(sb.blockSize);
+        fs_info->totalblock  = reverseInt(sb.totalBlocks);
+        fs_info->usedblocks  = reverseInt(sb.totalBlocks) - reverseInt(sb.freeBlocks);
+        fs_info->device_size = fs_info->block_size * fs_info->totalblock;
+    }
     log_mesg(2, 0, 0, 2, "%s: blockSize:%i\n", __FILE__, reverseInt(sb.blockSize));
     log_mesg(2, 0, 0, 2, "%s: totalBlocks:%i\n", __FILE__, reverseInt(sb.totalBlocks));
     log_mesg(2, 0, 0, 2, "%s: freeBlocks:%i\n", __FILE__, reverseInt(sb.freeBlocks));
