@@ -91,7 +91,7 @@ _findmkfs(){
 	;;
     esac
 
-    locate_path=$(type -P locate)
+#    locate_path=$(type -P locate)
     if [ -z $locate_path ]; then
         locate_path="which"
     fi
