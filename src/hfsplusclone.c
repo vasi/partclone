@@ -314,7 +314,7 @@ void read_super_blocks(char* device, file_system_info* fs_info)
         fs_info->block_size = PART_SECTOR_SIZE;
         fs_info->device_size = partition_size;
         fs_info->totalblock = fs_info->device_size / fs_info->block_size;
-        fs_info->usedblocks = fs_info->totalblock - (reverseInt(sb.freeBlocks) * reverseInt(sb.blockSize));
+        fs_info->usedblocks = fs_info->totalblock - reverseInt(sb.freeBlocks) * (reverseInt(sb.blockSize) / PART_SECTOR_SIZE);
     } else {
         fs_info->block_size  = reverseInt(sb.blockSize);
         fs_info->totalblock  = reverseInt(sb.totalBlocks);
