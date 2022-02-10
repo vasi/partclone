@@ -264,19 +264,35 @@ static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt
 
 void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, int pui) {
 
+    int i;
     int tb = 0;
     int start = 0, bit_size = 1;
+    UInt64 embed_offset = 0, embed_end = 0;
+    int bits_per_block = 1;
+    UInt32 block_offset = 0;
 
     fs_open(device);
     tb = reverseInt(sb.totalBlocks);
 
     /// init progress
     progress_bar   prog;	/// progress_bar structure defined in progress.h
-    progress_init(&prog, start, fs_info.totalblock, fs_info.totalblock, BITMAP, bit_size);
+    progress_init(&prog, start, tb, tb, BITMAP, bit_size);
 
-    pc_init_bitmap(bitmap, 0xFF, tb);
+    pc_init_bitmap(bitmap, 0xFF, fs_info.totalblock);
 
-    read_allocation_file(bitmap, &prog, fs_info.totalblock, 0, 1);
+    if (hsb.signature != 0) {
+        embed_offset = hfs_embed_offset();
+        block_offset = embed_offset / reverseInt(sb.blockSize);
+        embed_end = embed_offset + (UInt64)reverseInt(hsb.allocationBlockSize) * reverseShort(hsb.allocationBlockCount);
+
+        // Initialize the bitmap with wrapper blocks (start + end)
+        for (i = 0; i < embed_offset / fs_info.block_size; i++)
+            pc_set_bit(i, bitmap, fs_info.totalblock);
+        for (i = embed_end; i < fs_info.totalblock; i++)
+            pc_set_bit(i, bitmap, fs_info.totalblock);
+    }
+
+    read_allocation_file(bitmap, &prog, fs_info.totalblock, block_offset, bits_per_block);
 
     fs_close();
     /// update progress
