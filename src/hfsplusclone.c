@@ -110,20 +110,20 @@ static void open_wrapped_volume(char *device, short *signature, char *buffer) {
     *signature = reverseShort(sb.signature);
 
     if (*signature == HFSPlusSignature) {
-        log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume found at offset %lu.\n", __FILE__, embed_offset);
+        log_mesg(0, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume found at offset %lu.\n", __FILE__, embed_offset);
 
         // Do some sanity checks
         hfsp_block_size = reverseInt(sb.blockSize);
         wrapper_block_size = reverseInt(hsb.allocationBlockSize);
         if (wrapper_block_size % hfsp_block_size != 0)
-            log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus wrapper block size %u is not a multiple of block size %u.\n", __FILE__, wrapper_block_size, hfsp_block_size);
+            log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus wrapper block size %u is not a multiple of block size %u.\n", __FILE__, wrapper_block_size, hfsp_block_size);
         if (embed_offset % hfsp_block_size != 0)
-            log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume offset %lu is not a multiple of block size %u.\n", __FILE__, embed_offset, hfsp_block_size);
+            log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus embedded volume offset %lu is not a multiple of block size %u.\n", __FILE__, embed_offset, hfsp_block_size);
 
-        embed_size = (UInt64)wrapper_block_size * reverseShort(hsb.embedExtent.blockCount);
+        embed_size = (UInt64)wrapper_block_size * (UInt16)reverseShort(hsb.embedExtent.blockCount);
         hfsp_size = (UInt64)hfsp_block_size * reverseInt(sb.totalBlocks);
         if (embed_size != hfsp_size)
-            log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume size %lu doesn't match wrapper embed size %lu.\n", __FILE__, hfsp_size, embed_size);
+            log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus embedded volume size %lu doesn't match wrapper embed size %lu.\n", __FILE__, hfsp_size, embed_size);
     }
 }
 
@@ -286,7 +286,7 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
         embed_offset = hfs_embed_offset();
         block_size = reverseInt(sb.blockSize);
         block_offset = embed_offset / reverseInt(sb.blockSize);
-        embed_end = embed_offset + (UInt64)reverseInt(hsb.allocationBlockSize) * reverseShort(hsb.allocationBlockCount);
+        embed_end = embed_offset + (UInt64)reverseInt(hsb.allocationBlockSize) * (UInt16)reverseShort(hsb.allocationBlockCount);
 
         // Initialize the bitmap with wrapper blocks (start + end)
         for (i = 0; i < embed_offset / fs_info.block_size; i++)
