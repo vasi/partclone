@@ -318,9 +318,9 @@ void read_super_blocks(char* device, file_system_info* fs_info)
         fs_info->usedblocks  = reverseInt(sb.totalBlocks) - reverseInt(sb.freeBlocks);
         fs_info->device_size = fs_info->block_size * fs_info->totalblock;
     }
-    log_mesg(2, 0, 0, 2, "%s: blockSize:%i\n", __FILE__, reverseInt(sb.blockSize));
-    log_mesg(2, 0, 0, 2, "%s: totalBlocks:%i\n", __FILE__, reverseInt(sb.totalBlocks));
-    log_mesg(2, 0, 0, 2, "%s: freeBlocks:%i\n", __FILE__, reverseInt(sb.freeBlocks));
+    log_mesg(2, 0, 0, 2, "%s: blockSize:%i\n", __FILE__, fs_info->block_size);
+    log_mesg(2, 0, 0, 2, "%s: totalBlocks:%i\n", __FILE__, fs_info->totalblock);
+    log_mesg(2, 0, 0, 2, "%s: freeBlocks:%i\n", __FILE__, fs_info->totalblock - fs_info->usedblocks);
     print_fork_data(&sb.allocationFile);
     print_fork_data(&sb.extentsFile);
     print_fork_data(&sb.catalogFile);
