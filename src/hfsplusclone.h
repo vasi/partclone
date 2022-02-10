@@ -68,3 +68,53 @@ typedef struct HFSPlusVolumeHeader HFSPlusVolumeHeader;
 
 #define HFSPlusSignature 0x482b // H+
 #define HFSXSignature 0x4858 // HX
+
+
+/*
+ * HFS types, for handling HFS+ wrapper volumes.
+ *
+ * See Inside Macintosh volume 2 for HFS structures,
+ * and Apple Technote 1150 for HFS+ wrappers
+ */
+
+struct HFSExtentDescriptor {
+    UInt16 startBlock;
+    UInt16 blockCount;
+};
+typedef struct HFSExtentDescriptor HFSExtentDescriptor;
+
+typedef HFSExtentDescriptor HFSExtentRecord[3];
+
+struct __attribute__ ((packed)) HFSVolumeHeader {
+    UInt16 signature;
+    UInt32 createDate;
+    UInt32 modifyDate;
+    UInt16 attributes;
+    UInt16 rootFileCount;
+    UInt16 bitmapOffset;
+    UInt16 nextAllocation;
+    UInt16 allocationBlockCount;
+    UInt32 allocationBlockSize; // in bytes
+    UInt32 clumpSize;
+    UInt16 firstAllocationBlock; // in 512-byte blocks
+    UInt32 nextCatalogID;
+    UInt16 freeBlocks;
+    char label[28]; // pascal string
+    UInt32 backupDate;
+    UInt16 backupSeqNumber;
+    UInt32 writeCount;
+    UInt32 overflowClumpSize;
+    UInt32 catalogClumpSize;
+    UInt16 rootDirCount;
+    UInt32 fileCount;
+    UInt32 dirCount;
+    UInt32 finderInfo[8];
+    UInt16 embedSignature;
+    HFSExtentDescriptor embedExtent;
+    UInt32 overflowSize;
+    HFSExtentRecord overflowExtents;
+    UInt32 catalogSize;
+    HFSExtentRecord catalogExtents;
+};
+typedef struct HFSVolumeHeader HFSVolumeHeader;
+
