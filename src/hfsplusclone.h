@@ -118,3 +118,5 @@ struct __attribute__ ((packed)) HFSVolumeHeader {
 };
 typedef struct HFSVolumeHeader HFSVolumeHeader;
 
+#define HFSSignature 0x4244 // BD
+

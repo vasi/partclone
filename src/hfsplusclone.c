@@ -125,32 +125,29 @@ static void fs_close(){
 
 }
 
-void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, int pui) {
+// Device should already be open, bitmap allocated, and progress_bar initialized
+// block_offset = how many HFS+ blocks from the start of the device does the HFS+ volume start
+static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt32 block_offset) {
 
     int IsUsed = 0;
     UInt8 *extent_bitmap;
     UInt32 bused = 0, bfree = 0, mused = 0;
-    UInt32 block = 0, extent_block = 0, tb = 0;
+    UInt32 block = block_offset, extent_block = 0, tb = 0;
     int allocation_exten = 0;
+    UInt32 block_size = 0;
     UInt64 allocation_start_block;
     UInt32 allocation_block_size;
-    int start = 0;
-    int bit_size = 1;
+    UInt64 byte_offset = 0;
+    UInt32 total_block = reverseInt(sb.totalBlocks);
 
-
-    fs_open(device);
     tb = reverseInt(sb.totalBlocks);
-
-    /// init progress
-    progress_bar   prog;	/// progress_bar structure defined in progress.h
-    progress_init(&prog, start, fs_info.totalblock, fs_info.totalblock, BITMAP, bit_size);
-
-    pc_init_bitmap(bitmap, 0xFF, tb);
+    block_size = reverseInt(sb.blockSize);
+    byte_offset = block_offset * block_size;
 
     for (allocation_exten = 0; allocation_exten <= 7; allocation_exten++){
-        allocation_start_block = 4096*reverseInt(sb.allocationFile.extents[allocation_exten].startBlock);
+        allocation_start_block = block_size*reverseInt(sb.allocationFile.extents[allocation_exten].startBlock);
 
-        allocation_block_size = 4096*reverseInt(sb.allocationFile.extents[allocation_exten].blockCount);
+        allocation_block_size = block_size*reverseInt(sb.allocationFile.extents[allocation_exten].blockCount);
         log_mesg(2, 0, 0, 2, "%s: tb = %lu\n", __FILE__, tb);
         log_mesg(2, 0, 0, 2, "%s: extent_block = %lu\n", __FILE__, extent_block);
         log_mesg(2, 0, 0, 2, "%s: allocation_exten = %i\n", __FILE__, allocation_exten);
@@ -161,7 +158,7 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
             continue;
         }
 
-        if(lseek(ret, allocation_start_block, SEEK_SET) != allocation_start_block)
+        if(lseek(ret, byte_offset + allocation_start_block, SEEK_SET) != allocation_start_block)
 	     log_mesg(0, 1, 1, fs_opt.debug, "%s: start_block %i seek fail\n", __FILE__, allocation_start_block);
         extent_bitmap = (UInt8*)malloc(allocation_block_size);
         if(read(ret, extent_bitmap, allocation_block_size) != allocation_block_size)
@@ -170,16 +167,16 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
             IsUsed = IsAllocationBlockUsed(extent_block, extent_bitmap);
             if (IsUsed){
                 bused++;
-                pc_set_bit(block, bitmap, fs_info.totalblock);
+                pc_set_bit(block_offset + block, bitmap, total_block);
                 log_mesg(3, 0, 0, fs_opt.debug, "%s: used block= %i\n", __FILE__, block);
             } else {
                 bfree++;
-                pc_clear_bit(block, bitmap, fs_info.totalblock);
+                pc_clear_bit(block_offset + block, bitmap, total_block);
                 log_mesg(3, 0, 0, fs_opt.debug, "%s: free block= %i\n", __FILE__, block);
             }
             block++;
             /// update progress
-            update_pui(&prog, block, block, 0);
+            update_pui(prog, block, block, 0);
 
         }
         log_mesg(2, 0, 0, 2, "%s: next exten\n", __FILE__);
@@ -191,6 +188,23 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
     mused = (reverseInt(sb.totalBlocks) - reverseInt(sb.freeBlocks));
     if(bused != mused)
         log_mesg(0, 1, 1, fs_opt.debug, "%s: bitmap count error, used:%lu, mbitmap:%lu\n", __FILE__, bused, mused);
+}
+
+void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, int pui) {
+
+    int tb = 0;
+    int start = 0, bit_size = 1;
+
+    fs_open(device);
+    tb = reverseInt(sb.totalBlocks);
+
+    /// init progress
+    progress_bar   prog;	/// progress_bar structure defined in progress.h
+    progress_init(&prog, start, fs_info.totalblock, fs_info.totalblock, BITMAP, bit_size);
+
+    pc_init_bitmap(bitmap, 0xFF, tb);
+
+    read_allocation_file(bitmap, &prog, 0);
 
     fs_close();
     /// update progress
