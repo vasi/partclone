@@ -230,8 +230,8 @@ static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt
             continue;
         }
 
-        if(lseek(ret, byte_offset + allocation_start_block, SEEK_SET) != allocation_start_block)
-	     log_mesg(0, 1, 1, fs_opt.debug, "%s: start_block %i seek fail\n", __FILE__, allocation_start_block);
+        if(lseek(ret, byte_offset + allocation_start_block, SEEK_SET) != byte_offset + allocation_start_block)
+	     log_mesg(0, 1, 1, fs_opt.debug, "%s: start_block %i seek fail\n", __FILE__, byte_offset + allocation_start_block);
         extent_bitmap = (UInt8*)malloc(allocation_block_size);
         if(read(ret, extent_bitmap, allocation_block_size) != allocation_block_size)
 	    log_mesg(0, 0, 1, fs_opt.debug, "%s: read hfsp bitmap fail\n", __FILE__);
