@@ -31,6 +31,7 @@
 
 struct HFSPlusVolumeHeader sb;
 struct HFSVolumeHeader hsb;
+UInt64 partition_size;
 int ret;
 
 static short reverseShort(short s){
@@ -178,7 +179,7 @@ static void fs_close(){
 
 // Device should already be open, bitmap allocated, and progress_bar initialized
 // block_offset = how many HFS+ blocks from the start of the device does the HFS+ volume start
-static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt32 block_offset) {
+static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt32 total_block, UInt32 block_offset) {
 
     int IsUsed = 0;
     UInt8 *extent_bitmap;
@@ -189,7 +190,6 @@ static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt
     UInt64 allocation_start_block;
     UInt32 allocation_block_size;
     UInt64 byte_offset = 0;
-    UInt32 total_block = reverseInt(sb.totalBlocks);
 
     tb = reverseInt(sb.totalBlocks);
     block_size = reverseInt(sb.blockSize);
@@ -255,7 +255,7 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
 
     pc_init_bitmap(bitmap, 0xFF, tb);
 
-    read_allocation_file(bitmap, &prog, 0);
+    read_allocation_file(bitmap, &prog, fs_info.totalblock, 0);
 
     fs_close();
     /// update progress
