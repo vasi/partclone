@@ -80,7 +80,7 @@ static void fs_open(char* device){
 
     char *buffer;
     short HFS_Version;
-    char HFS_Signature[2];
+    short HFS_Signature;
     int HFS_Clean = 0;
 
     ret = open(device, O_RDONLY);
@@ -92,15 +92,19 @@ static void fs_open(char* device){
 	log_mesg(0, 1, 1, fs_opt.debug, "%s: read HFSPlusVolumeHeader fail\n", __FILE__);
     memcpy(&sb, buffer, sizeof(HFSPlusVolumeHeader));
 
-    HFS_Signature[0] = (char)sb.signature;
-    HFS_Signature[1] = (char)(sb.signature>>8);
+    HFS_Signature = (short)reverseShort(sb.signature);
     HFS_Version = (short)reverseShort(sb.version);
     HFS_Clean = (reverseInt(sb.attributes)>>8) & 1;
 
-    log_mesg(3, 0, 0, fs_opt.debug, "%s: Signature=%c%c\n", __FILE__, HFS_Signature[0], HFS_Signature[1]);
+
+    log_mesg(3, 0, 0, fs_opt.debug, "%s: Signature=%.2s\n", __FILE__, (char*)&HFS_Signature);
     log_mesg(3, 0, 0, fs_opt.debug, "%s: Version=%i\n", __FILE__, HFS_Version);
     log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Unmounted=%i(1 is clean, 0 is dirty)\n", __FILE__, HFS_Clean);
     log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Inconsistent=%i\n", __FILE__, (reverseInt(sb.attributes)>>11) & 1);
+
+    if(HFS_Signature != HFSPlusSignature && HFS_Signature != HFSXSignature){
+        log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus incorrect signature '%.2s'\n", __FILE__, (char*)&HFS_Signature);
+    }
 
     if(fs_opt.ignore_fschk){
         log_mesg(1, 0, 0, fs_opt.debug, "%s: Ignore filesystem check\n", __FILE__);

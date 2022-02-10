@@ -65,3 +65,6 @@ struct HFSPlusVolumeHeader {
 
 };
 typedef struct HFSPlusVolumeHeader HFSPlusVolumeHeader;
+
+#define HFSPlusSignature 0x482b // H+
+#define HFSXSignature 0x4858 // HX
