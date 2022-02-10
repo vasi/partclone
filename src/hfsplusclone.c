@@ -30,6 +30,7 @@
 #include "fs_common.h"
 
 struct HFSPlusVolumeHeader sb;
+struct HFSVolumeHeader hsb;
 int ret;
 
 static short reverseShort(short s){
@@ -75,6 +76,53 @@ static void print_fork_data(HFSPlusForkData* fork){
     }
 }
 
+static UInt64 hfs_embed_offset() {
+    int wrapper_block_size;
+
+    wrapper_block_size = reverseInt(hsb.allocationBlockSize);
+    return (UInt64)reverseShort(hsb.firstAllocationBlock) * 512 +
+        reverseShort(hsb.embedExtent.startBlock) * wrapper_block_size;
+}
+
+// Try to use this device as an HFS+ volume embedded in an HFS wrapper
+static void open_wrapped_volume(char *device, short *signature, char *buffer) {
+    short wrapper_signature;
+    int hfsp_block_size, wrapper_block_size;
+    UInt64 embed_offset, hfsp_sb_offset;
+    UInt64 embed_size, hfsp_size;
+
+    memcpy(&hsb, &sb, sizeof(HFSVolumeHeader)); // HFS header is always smaller
+    wrapper_signature = reverseShort(hsb.embedSignature);
+    if (wrapper_signature != HFSPlusSignature)
+        log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus volume is really just HFS, can't clone that.\n", __FILE__);
+
+    embed_offset = hfs_embed_offset();
+    hfsp_sb_offset = embed_offset + 1024;
+    if (lseek(ret, hfsp_sb_offset, SEEK_SET) != hfsp_sb_offset)
+        log_mesg(0, 1, 1, fs_opt.debug, "%s: failed seeking to embedded HFS Plus superblock at offset %lu on device %s.\n", __FILE__, hfsp_sb_offset, device);
+    if (read(ret, buffer, sizeof(HFSPlusVolumeHeader)) != sizeof(HFSPlusVolumeHeader))
+        log_mesg(0, 1, 1, fs_opt.debug, "%s: read embedded HFSPlusVolumeHeader fail.\n", __FILE__);
+    memcpy(&sb, buffer, sizeof(HFSPlusVolumeHeader));
+    *signature = reverseShort(sb.signature);
+
+    if (*signature == HFSPlusSignature) {
+        log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume found at offset %lu.\n", __FILE__, embed_offset);
+
+        // Do some sanity checks
+        hfsp_block_size = reverseInt(sb.blockSize);
+        wrapper_block_size = reverseInt(hsb.allocationBlockSize);
+        if (wrapper_block_size % hfsp_block_size != 0)
+            log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus wrapper block size %u is not a multiple of block size %u.\n", __FILE__, wrapper_block_size, hfsp_block_size);
+        if (embed_offset % hfsp_block_size != 0)
+            log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume offset %lu is not a multiple of block size %u.\n", __FILE__, embed_offset, hfsp_block_size);
+
+        embed_size = (UInt64)wrapper_block_size * reverseShort(hsb.embedExtent.blockCount);
+        hfsp_size = (UInt64)hfsp_block_size * reverseInt(sb.totalBlocks);
+        if (embed_size != hfsp_size)
+            log_mesg(1, 0, 0, fs_opt.debug, "%s: HFS_Plus embedded volume size %lu doesn't match wrapper embed size %lu.\n", __FILE__, hfsp_size, embed_size);
+    }
+}
+
 /// open device
 static void fs_open(char* device){
 
@@ -92,19 +140,22 @@ static void fs_open(char* device){
 	log_mesg(0, 1, 1, fs_opt.debug, "%s: read HFSPlusVolumeHeader fail\n", __FILE__);
     memcpy(&sb, buffer, sizeof(HFSPlusVolumeHeader));
 
-    HFS_Signature = (short)reverseShort(sb.signature);
-    HFS_Version = (short)reverseShort(sb.version);
-    HFS_Clean = (reverseInt(sb.attributes)>>8) & 1;
+    HFS_Signature = reverseShort(sb.signature);
 
-
-    log_mesg(3, 0, 0, fs_opt.debug, "%s: Signature=%.2s\n", __FILE__, (char*)&HFS_Signature);
-    log_mesg(3, 0, 0, fs_opt.debug, "%s: Version=%i\n", __FILE__, HFS_Version);
-    log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Unmounted=%i(1 is clean, 0 is dirty)\n", __FILE__, HFS_Clean);
-    log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Inconsistent=%i\n", __FILE__, (reverseInt(sb.attributes)>>11) & 1);
+    if(HFS_Signature == HFSSignature) {
+        open_wrapped_volume(device, &HFS_Signature, buffer);
+    }
 
     if(HFS_Signature != HFSPlusSignature && HFS_Signature != HFSXSignature){
         log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus incorrect signature '%.2s'\n", __FILE__, (char*)&HFS_Signature);
     }
+
+    HFS_Version = (short)reverseShort(sb.version);
+    HFS_Clean = (reverseInt(sb.attributes)>>8) & 1;
+    log_mesg(3, 0, 0, fs_opt.debug, "%s: Signature=%.2s\n", __FILE__, (char*)&HFS_Signature);
+    log_mesg(3, 0, 0, fs_opt.debug, "%s: Version=%i\n", __FILE__, HFS_Version);
+    log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Unmounted=%i(1 is clean, 0 is dirty)\n", __FILE__, HFS_Clean);
+    log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Inconsistent=%i\n", __FILE__, (reverseInt(sb.attributes)>>11) & 1);
 
     if(fs_opt.ignore_fschk){
         log_mesg(1, 0, 0, fs_opt.debug, "%s: Ignore filesystem check\n", __FILE__);
