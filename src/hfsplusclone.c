@@ -271,7 +271,7 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
     int start = 0, bit_size = 1;
     UInt64 embed_offset = 0, embed_end = 0;
     int bits_per_block = 1;
-    UInt32 block_offset = 0;
+    UInt32 block_size = 0, block_offset = 0;
 
     fs_open(device);
     tb = reverseInt(sb.totalBlocks);
@@ -284,6 +284,7 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
 
     if (hsb.signature != 0) {
         embed_offset = hfs_embed_offset();
+        block_size = reverseInt(sb.blockSize);
         block_offset = embed_offset / reverseInt(sb.blockSize);
         embed_end = embed_offset + (UInt64)reverseInt(hsb.allocationBlockSize) * reverseShort(hsb.allocationBlockCount);
 
@@ -292,6 +293,8 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
             pc_set_bit(i, bitmap, fs_info.totalblock);
         for (i = embed_end; i < fs_info.totalblock; i++)
             pc_set_bit(i, bitmap, fs_info.totalblock);
+
+        bits_per_block = block_size / PART_SECTOR_SIZE;
     }
 
     read_allocation_file(bitmap, &prog, fs_info.totalblock, block_offset, bits_per_block);
