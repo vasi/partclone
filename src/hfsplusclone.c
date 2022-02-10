@@ -153,12 +153,14 @@ static void fs_open(char* device){
     }
 
     if(HFS_Signature != HFSPlusSignature && HFS_Signature != HFSXSignature){
-        log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus incorrect signature '%.2s'\n", __FILE__, (char*)&HFS_Signature);
+        log_mesg(0, 1, 1, fs_opt.debug, "%s: HFS_Plus incorrect signature '%c%c'\n", __FILE__,
+            (char)(HFS_Signature >> 8), (char)HFS_Signature);
     }
 
     HFS_Version = (short)reverseShort(sb.version);
     HFS_Clean = (reverseInt(sb.attributes)>>8) & 1;
-    log_mesg(3, 0, 0, fs_opt.debug, "%s: Signature=%.2s\n", __FILE__, (char*)&HFS_Signature);
+    log_mesg(3, 0, 0, fs_opt.debug, "%s: Signature=%c%c\n", __FILE__,
+        (char)(HFS_Signature >> 8), (char)HFS_Signature);
     log_mesg(3, 0, 0, fs_opt.debug, "%s: Version=%i\n", __FILE__, HFS_Version);
     log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Unmounted=%i(1 is clean, 0 is dirty)\n", __FILE__, HFS_Clean);
     log_mesg(3, 0, 0, fs_opt.debug, "%s: Attr-Inconsistent=%i\n", __FILE__, (reverseInt(sb.attributes)>>11) & 1);
