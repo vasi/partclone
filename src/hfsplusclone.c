@@ -177,9 +177,25 @@ static void fs_close(){
 
 }
 
+static void pc_set_bits(UInt32 block_offset, UInt32 block, unsigned long* bitmap, UInt32 total_block, int bits_per_block) {
+    int i;
+    unsigned long int start = (block_offset + block) * bits_per_block;
+    for (i = 0; i < bits_per_block; i++) {
+        pc_set_bit(start + i, bitmap, total_block);
+    }
+}
+
+static void pc_clear_bits(UInt32 block_offset, UInt32 block, unsigned long* bitmap, UInt32 total_block, int bits_per_block) {
+    int i;
+    unsigned long int start = (block_offset + block) * bits_per_block;
+    for (i = 0; i < bits_per_block; i++) {
+        pc_clear_bit(start + i, bitmap, total_block);
+    }
+}
+
 // Device should already be open, bitmap allocated, and progress_bar initialized
 // block_offset = how many HFS+ blocks from the start of the device does the HFS+ volume start
-static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt32 total_block, UInt32 block_offset) {
+static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt32 total_block, UInt32 block_offset, int bits_per_block) {
 
     int IsUsed = 0;
     UInt8 *extent_bitmap;
@@ -218,11 +234,11 @@ static void read_allocation_file(unsigned long* bitmap, progress_bar *prog, UInt
             IsUsed = IsAllocationBlockUsed(extent_block, extent_bitmap);
             if (IsUsed){
                 bused++;
-                pc_set_bit(block_offset + block, bitmap, total_block);
+                pc_set_bits(block_offset, block, bitmap, total_block, bits_per_block);
                 log_mesg(3, 0, 0, fs_opt.debug, "%s: used block= %i\n", __FILE__, block);
             } else {
                 bfree++;
-                pc_clear_bit(block_offset + block, bitmap, total_block);
+                pc_clear_bits(block_offset, block, bitmap, total_block, bits_per_block);
                 log_mesg(3, 0, 0, fs_opt.debug, "%s: free block= %i\n", __FILE__, block);
             }
             block++;
@@ -255,7 +271,7 @@ void read_bitmap(char* device, file_system_info fs_info, unsigned long* bitmap, 
 
     pc_init_bitmap(bitmap, 0xFF, tb);
 
-    read_allocation_file(bitmap, &prog, fs_info.totalblock, 0);
+    read_allocation_file(bitmap, &prog, fs_info.totalblock, 0, 1);
 
     fs_close();
     /// update progress
